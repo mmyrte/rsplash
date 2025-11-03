@@ -1,8 +1,11 @@
+# SPLASH in R
+
 ## Overview
 
-`rsplash` is the R implementation of the Simple process-led algorithms for simulating habitats (SPLASH v.2.0), which comprises robust formulations to compute energy and water fluxes. This R package, wrapping the C++ code, is intended to provide simulations either at site-scale or spatially-distributed, when the grid functionality is used. For reference, the code of the original v.1.0  (Davis et a., 2017) is hosted here: https://bitbucket.org/labprentice/splash/src/master/.
+`rsplash` is the R implementation of the Simple process-led algorithms for simulating habitats (SPLASH v.2.0), which comprises robust formulations to compute energy and water fluxes. This R package, wrapping the C++ code, is intended to provide simulations either at site-scale or spatially-distributed, when the grid functionality is used. For reference, the code of the original v.1.0 (Davis et a., 2017) is hosted here: https://bitbucket.org/labprentice/splash/src/master/.
 
 ## What's new
+
 - Shortwave radiation as input instead of cloudiness.
 - Terrain effects on the analytical integrals of the daily energy fluxes.
 - Daily infiltration as an analytical integral of the Green-Amp model with corrections for slope.
@@ -16,56 +19,91 @@
 - Snowpack balance calculations.
 
 ## Installation
-To install the development release  of the `rsplash` package please run: 
+
+To install this version of the `rsplash` package, please run:
+
 ```r
-if(!require(devtools)){install.packages(devtools)}
-devtools::install_github( "dsval/rsplash")
+devtools::install_github( "mmyrte/rsplash")
 ```
+
+Alternatively, you can clone the repo and use `devtools::load_all()` locally.
+All C++ components should be built correctly like that.
+
 ## Example
-This example runs splash with data from one station of the SNOTEL network (https://wcc.sc.egov.usda.gov/nwcc/site?sitenum=361)
-*Soil Water content here (SWC (mm)) is defined as the accumulated soil moisture &theta;<sub>i</sub> (v/v) from all the measured depth intervals.
+
+This example runs splash with data from one station of the SNOTEL network (https://wcc.sc.egov.usda.gov/nwcc/site?sitenum=361).
+Soil Water content here (SWC (mm)) is defined as the accumulated soil moisture theta_i (v/v) from all the measured depth intervals.
+
 ```r
 library(rsplash)
 # load some data
 data(Bourne)
 # run splash
-run1<-splash.point(
-	sw_in=Bourne$forcing$sw_in,	# shortwave radiation W/m2
-	tc=Bourne$forcing$Ta,		# air temperature C
-	pn= Bourne$forcing$P,		# precipitation mm
-	lat=Bourne$md$latitude,		# latitude deg
-	elev=Bourne$md$elev_m,		# elevation masl
-	slop=Bourne$md$slop_250m,	# slope deg
-	asp=Bourne$md$asp_250m,		# aspect deg
-	soil_data=Bourne$soil, 		# soil data: sand,clay,som in w/w %. Gravel v/v %, bulk density g/cm3, and depth to the bedrock (m)**
-	Au=Bourne$md$Aups_250m,		# upslope area m2
-	resolution=250.0  			# resolution pixel dem used to get Au
+run1 <- splash.point(
+  # shortwave radiation W/m2
+  sw_in = Bourne$forcing$sw_in,
+  # air temperature C
+  tc = Bourne$forcing$Ta,
+  # precipitation mm
+  pn = Bourne$forcing$P,
+  # latitude deg
+  lat = Bourne$md$latitude,
+  # elevation masl
+  elev = Bourne$md$elev_m,
+  # slope deg
+  slop = Bourne$md$slop_250m,
+  # aspect deg
+  asp = Bourne$md$asp_250m,
+  # soil data: sand,clay,som in w/w %. Gravel v/v %, bulk density g/cm3, and
+  # depth to the bedrock (m), soil column thickness
+  soil_data = Bourne$soil,
+  # upslope area m2
+  Au = Bourne$md$Aups_250m,
+  # resolution pixel dem used to get Au
+  resolution = 250.0
 )
-#*NOTE: if slop=0.0 (flat surface) the lateral flow is assumed negligible, so: asp,Au and resolution can be ommitted, it won't affect the calculations since all the fluxes are assumed vertical.
-#**Soil column thickness
+
+# NOTE: if slop=0.0 (flat surface) the lateral flow is assumed negligible, so:
+# asp, Au and resolution can be ommitted, it won't affect the calculations since
+# all the fluxes are assumed vertical.
 
 # plot the snow water equivalent
-plot(Bourne$forcing$swe,main='SWE (mm)');lines(run1$snow,col=2,lwd=2)
-addLegend(legend.loc = "topright", legend.names =c('SWE obs.','SWE sim.'),col=c(1,2),lty=rep(1,2), lwd=rep(2,2))
+plot(Bourne$forcing$swe, main = "SWE (mm)")
+lines(run1$snow, col = 2, lwd = 2)
+addLegend(
+  legend.loc = "topright",
+  legend.names = c("SWE obs.", "SWE sim."),
+  col = c(1, 2),
+  lty = rep(1, 2),
+  lwd = rep(2, 2)
+)
 
 #Compare the simulations of soil water content (mm) with the measurements taken up to Bourne$max_depth_sm (0.49 m):
 # get the simulated water content in the measured region of the profile
-swc<-unSWC(soil_data = Bourne$soil, uns_depth = Bourne$max_depth_sm,wn = run1$wn)
+swc <- unSWC(
+  soil_data = Bourne$soil,
+  uns_depth = Bourne$max_depth_sm,
+  wn = run1$wn
+)
 
 # plot the soil water content up to 0.49 m
 dev.new()
-plot(Bourne$forcing$sm,main=paste('SWC (mm)','up to',Bourne$max_depth_sm,'m'))
-lines(swc[[1]],col=4,lwd=2)
-addLegend(legend.loc = "topright", legend.names =c('SWC obs.','SWC sim.'),col=c(1,4),lty=rep(1,2), lwd=rep(2,2))
-
+plot(
+  Bourne$forcing$sm,
+  main = paste("SWC (mm)", "up to", Bourne$max_depth_sm, "m")
+)
+lines(swc[[1]], col = 4, lwd = 2)
+addLegend(
+  legend.loc = "topright",
+  legend.names = c("SWC obs.", "SWC sim."),
+  col = c(1, 4),
+  lty = rep(1, 2),
+  lwd = rep(2, 2)
+)
 ```
 
 ## References
 
-Sandoval, D., Prentice, I. C. and Nóbrega R. (in progress). Simple process-led algorithms for simulating habitats (SPLASH v.2.0): calibration-free calculations of water and energy fluxes 
+Sandoval, D., Prentice, I. C. and Nóbrega R. (in progress). Simple process-led algorithms for simulating habitats (SPLASH v.2.0): calibration-free calculations of water and energy fluxes
 
 Davis, T.W., Prentice, I.C., Stocker, B.D., Thomas, R.T., Whitley, R.J., Wang, H., Evans, B.J., Gallego-Sala, A. V., Sykes, M.T., Cramer, W., 2017. Simple process-led algorithms for simulating habitats (SPLASH v.1.0): robust indices of radiation, evapotranspiration and plant-available moisture. Geosci. Model Dev. 10, 689–708. doi:10.5194/gmd-10-689-2017
-
-## Development Setup
-
-If you want to work on this codebase using Visual Studio Code, some setup files are included. Assuming you install the extensions `REditorSupport.r` and `ms-vscode.cpptools-extension-pack`, you should get a functioning environment set up and running by executing `renv::init()` and choosing the "explicit" option, i.e., reading package dependencies from the package `DESCRIPTION`.
