@@ -190,8 +190,11 @@ splash.point <- function(
       resolution^2,
       ncellin,
       ncellout,
-      1
+      0
     )
+    # ^ Jaideep FIXME: Note that this does not set soil_info[13] to AI. This
+    # means that when this is dereferenced in quick-run, there's a risk of
+    # segfault or garbage value
   }
   ###########################################################################
   # define snowfall occurrence:
@@ -236,8 +239,16 @@ splash.point <- function(
     as.numeric(snowf_av[1:365]),
     soil_info
   )
+  # ^ Jaideep FIXME: This sees a size-12 soil_info when length(Au)=1, so might
+  # get segfault, or worse, AI will get garbage value
+
   # update aridity
-  soil_info[12] <- sum(initial_AI$pet, na.rm = T) / sum(Pinit[1:365], na.rm = T)
+  soil_info[13] <-
+    sum(initial_AI$pet, na.rm = TRUE) /
+    sum(Pinit[1:365], na.rm = TRUE)
+  # ^ Jaideep FIXME: This is assigning AI to soil_info[12] (R indexing) which is ncellout
+  # It should instead go into soil_info[13] (R indexing), i.e. soil_info[12] (C++ indexing)
+
   # run spin up
   initial <- my_splash$spin_up(
     as.integer(365),

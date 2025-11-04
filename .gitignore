@@ -38,8 +38,13 @@ vignettes/*.pdf
 
 # Rcpp artifacts
 *.o
+*.a
 *.so
 *.dll
+
+# standalone cpp artifacts
+build
+lib
 
 # ignore renv files; if people want to init renv from DESCRIPTION, they should be able to
 renv*

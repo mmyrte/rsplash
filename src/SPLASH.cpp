@@ -1,11 +1,15 @@
 #include <cstdlib>
 #include <stdio.h>
 #include <vector>
+#include <cmath>
+#include <iostream>
 
 #include "global.h"
 #include "SPLASH.h"
 
 using namespace std;
+
+#ifndef NATIVE_CPP
 
 #include <Rcpp.h>
 using namespace Rcpp;
@@ -19,6 +23,8 @@ RCPP_MODULE(splash_module) {
     .method( "run_all", &SPLASH::run_all )
 	;
 }
+
+#endif
 
 /* \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
  * SPLASH.cpp
@@ -195,6 +201,8 @@ void SPLASH::quick_run(int n, int y, double wn, double sw_in, double tc,
     double cellout = soil_info[11];
     double AI = soil_info[12];
     
+    // std::cout << "AI = " << AI << " (soil info size = " << soil_info.size() << ")\n";
+
     // assuming gravity and water density constants, define coefficient to calc graviational potential
     double KG_o=1000.0/(997*Global::G);
     //if(isnan(soil_info[12])==1 ){
@@ -917,9 +925,9 @@ void SPLASH::quick_run(int n, int y, double wn, double sw_in, double tc,
    
 }
 
-void SPLASH::run_one_day(int n, int y, double wn, double sw_in, double tc,
+etr SPLASH::run_one_day(int n, int y, double wn, double sw_in, double tc,
                          double pn,smr &dsoil, double slop, double asp,double snow, double snowfall, vector <double> &soil_info,
-                         double qin, double td, double nd) {
+                         double qin, double td, double nd, double plant_uptake) {
     /* ***********************************************************************
     Name:     SPLASH.run_one_day
     Input:    - int, day of year (n)
@@ -1265,11 +1273,11 @@ void SPLASH::run_one_day(int n, int y, double wn, double sw_in, double tc,
     double surf_moist = moist_surf(depth,10.0,bub_press,wn,SAT,RES,lambda);
     // 5.1.4. calculate infiltration assuming storm duration max 3hrs
     double theta_m = max(Wmax/(depth *1000.0),theta_i);
-    double infi = inf_GA(bub_press,surf_moist,Ksat_visc,theta_s,lambda,inflow,6.0,slop);
+    double infi = inf_GA(bub_press,surf_moist,Ksat_visc,theta_s,lambda,inflow,6.0,slop); // May change 6.0 to lower number to avoid nans in t_drain
     // 5.1.5. calculate Hortonian (infiltration excess) runoff
     double ro_h = max(inflow-infi,0.0);
     // 5.1.6. calculate recharge
-    double R = infi - dvap.aet;
+    double R = infi - dvap.aet - plant_uptake;
     // 5.1.7. define the hydraulic gradient assuming steady state: z: I=Ks(dh/dz +1), x: tan(slop), if theta<fc no vertical flow outside the column
     
     double Kunsat = Ksat_visc * pow((theta_m/theta_s),(3.0+(2.0/lambda)));
@@ -1470,11 +1478,13 @@ void SPLASH::run_one_day(int n, int y, double wn, double sw_in, double tc,
     if((R > 0.0) && (sm > Wmax)){
         // calc theoretical time to drain out the area upslope at the current transmittance
         t_drain = -1.0*log(1.0-(log(Kb)*(Au*R/Q)))/log(Kb);
+        // cout << "R/Q/t_drain = " << R << "/" << Q << "/" << t_drain << '\n'; 
         // using the usual decaying drainage eqn Q_t=Q_o Kb^t, how muchs is the initial input?
         //q_in_f = Qt/(Ai*pow(Kb,t_drain));
         q_in_f = (Qt-Au*R*log(Kb))/Ai;
        
     }    
+    if (isnan(t_drain)) t_drain = 0; // FIXME: temporary fix, to be tested thoroughly
     // failsafe for big storms
     if (q_in_f  < 0.0 || isnan(q_in_f)==1){
         q_in_f  = 0.0;
@@ -1581,17 +1591,26 @@ void SPLASH::run_one_day(int n, int y, double wn, double sw_in, double tc,
     dsoil.sqout = qin_nday; 
     dsoil.bflow = T;
     dsoil.nd = nd;
-    
-   
 
-       
+    dsoil.stress_factor = (sm-RES)/(Wmax-RES);   
+    // cout << "sw_end(calc at start) / stress_end (calc at end) = " << sw << " / " << dsoil.stress_factor << '\n';
+
+    theta_i = (sm)/(depth*1000.0);
+    dsoil.sm_vv = theta_i;
+    
+    // correct theta_i for NA error reaching boundary conditions
+    if (theta_i>=theta_s){
+        theta_i = theta_s - 0.001;
+    } else if (theta_i<=theta_r){
+        theta_i = theta_r + 0.001;
+    }
+    dsoil.psi_m = bub_press/pow((((theta_i-theta_r)/(theta_s-theta_r))),(1/lambda));
+    dsoil.psi_m *= 0.00000980665; // convert from mmH2o --> MPa
+
+    return dvap;
 }
 
-// How to return Lists to R
-// In .h and .cpp -- Make return type of the function as List (in each file, at the begining, put #include <Rcpp.h>)
-// at the end of the function, return List::create(values...)
-
-List SPLASH::spin_up(int n, int y, vector<double> &sw_in, vector <double> &tair, vector <double> &pn, 
+vector<vector<double>> SPLASH::spin_up_cpp(int n, int y, vector<double> &sw_in, vector <double> &tair, vector <double> &pn, 
                         double slop, double asp, vector <double> &snowfall,vector <double> &soil_info){
     /* ***********************************************************************
     Name:     SPLASH.spin_up
@@ -1744,8 +1763,23 @@ List SPLASH::spin_up(int n, int y, vector<double> &sw_in, vector <double> &tair,
 
     // Save initial soil moisture condition:
     //dsoil.sm = wn_vec[n-1];
+
+    return {wn_vec, snow_vec, qin_prev_vec, tdrain_vec, ro_vec, nds_prev_vec, pet_vec};
+
+}
+
+#ifndef NATIVE_CPP
+
+// How to return Lists to R
+// In .h and .cpp -- Make return type of the function as List (in each file, at the begining, put #include <Rcpp.h>)
+// at the end of the function, return List::create(values...)
+
+List SPLASH::spin_up(int n, int y, vector<double> &sw_in, vector <double> &tair, vector <double> &pn, 
+                     double slop, double asp, vector <double> &snowfall,vector <double> &soil_info){
     
-    return List::create(Named("sm") = wn_vec, Named("snow") = snow_vec,Named("qin") = qin_prev_vec,Named("tdrain") = tdrain_vec, Named("ro") = ro_vec, Named("snwage") = nds_prev_vec, Named("pet") = pet_vec);
+    vector<vector<double>> result = spin_up_cpp(n, y, sw_in, tair, pn, 
+                                                slop, asp, snowfall, soil_info);
+    return List::create(Named("sm") = result[0], Named("snow") = result[1], Named("qin") = result[2], Named("tdrain") = result[3], Named("ro") = result[4], Named("snwage") = result[5], Named("pet") = result[6]);
 }
 
 List SPLASH::run_one_year(int n, int y, vector<double> &sw_in, vector <double> &tair, vector <double> &pn, vector <double> &wn_vec, 
@@ -1914,6 +1948,8 @@ return List::create(Named("wn") = wn_vec, Named("ro") = ro_vec, Named("pet") = p
                     Named("snow") = snow_vec, Named("cond") = cond_vec, Named("bflow") = bflow_vec,Named("netr") = netr_vec,
                     Named("qin_prev") = qin_vec, Named("tdrain") = td_vec, Named("snwage") = nds_vec);
 }
+
+#endif
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
