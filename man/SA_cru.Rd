@@ -24,8 +24,8 @@ A list containing
 SA_cru
 }
 \description{
-Used to construct a \code{\link[=splash.grid]{splash.grid()}} call. The CRU in the name probably stands for the
+Used to construct a \code{\link[=splash.grid]{splash.grid()}} call. The CRU in the name likely stands for the
 \href{https://research-portal.uea.ac.uk/en/organisations/climatic-research-unit}{Climatic Research Unit} at
-the University of East Anglia. The soil data's
+the University of East Anglia.
 }
 \keyword{datasets}

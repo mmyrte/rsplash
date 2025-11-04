@@ -11,7 +11,7 @@ splash.grid(
   elev,
   soil,
   outdir = getwd(),
-  tmpdir = dirname(rasterTmpFile()),
+  tmpdir = dirname(raster::rasterTmpFile()),
   sim.control = list(monthly_out = TRUE, inmem = FALSE)
 )
 }
@@ -52,7 +52,8 @@ a list of rasterBricks objects with z time dimension, all of them saved to outdi
 R/C++ implementation of the SPLASH v.2.0 algorithm (Davis et al., 2017; Sandoval et al., in prep.).
 }
 \examples{
-\dontrun{data(SA_cru)
+\dontrun{
+data(SA_cru)
 splash.grid(
   sw_in = SA_cru$sw_in,
   tc = SA_cru$tc,
@@ -65,7 +66,8 @@ splash.grid(
     monthly_out = FALSE,
     inmem = TRUE
   )
-)}
+)
+}
 }
 \keyword{evapotranspiration,}
 \keyword{moisture}
