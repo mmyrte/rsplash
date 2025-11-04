@@ -60,8 +60,11 @@ class SOLAR {
         double rho;                // rel. earth-sun distance
         double dr;                 // distance factor
         double delta;              // declination, degrees
-        double ru, rv, rw, rx;     // variable substitutions
-        double hs, hn, hi;         // hour angles, degrees
+        // TODO why was rx, hi included here? not used
+        // double ru, rv, rw, rx;     // variable substitutions
+        // double hs, hn, hi;         // hour angles, degrees
+        double ru, rv, rw;         // variable substitutions
+        double hs, hn;             // hour angles, degrees
         double ra_d;       // daily solar irradiation, J/m^2
         double tau_o;      // surface transmittivity
         double tau;        // elv. corrected transmittivity

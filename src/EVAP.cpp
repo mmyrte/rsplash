@@ -93,7 +93,7 @@ void EVAP::calculate_daily_fluxes(double sw, int n, int y, double sw_in,
     hn = d_sr.hn;
     rn_d = d_sr.rn_d;
     rnn_d = d_sr.rnn_d;
-    double ts = d_sr.ts;
+    // double ts = d_sr.ts;
     
     // printf("Rnl in EVAP function: %0.6f W/m^2\n", rnl);
 
@@ -140,7 +140,7 @@ void EVAP::calculate_daily_fluxes(double sw, int n, int y, double sw_in,
     // limit alpha Qualls & Crago (2020) doi:10.1029/2019WR026766
     //double alpha = (1.0 + min(Global::w, g/s));
     // average alpha Assouline, et al. (2016) doi:10.1002/2015WR017504.
-    double alpha = (1.0 + ((s+g)/s))/2;
+    // double alpha = (1.0 + ((s+g)/s))/2;
 
     //pet_d = (alpha)*eet_d;
     pet_d = eet_d;
